@@ -1,0 +1,31 @@
+CREATE TABLE poligono1 AS
+
+WITH dump AS (
+    SELECT id, (ST_DumpPoints(ST_Buffer(geom,50,10))).geom as geom 
+    FROM camaras --insert your point table here
+    UNION ALL 
+    SELECT id, geom FROM camaras --same here
+)
+
+SELECT id, (ST_Dump(ST_DelaunayTriangles(ST_Collect(geom),0, 0))).geom geom
+FROM dump
+GROUP BY id;
+
+---------------------------------------------------------------------------------
+
+create table puntos as
+SELECT id, ST_PointN(lines,generate_series(1, ST_NPoints(lines))) as geom
+FROM 
+	(SELECT id, ST_GeometryN(geom, generate_series(1,ST_NumGeometries(geom))) AS lines
+	FROM (select id, ST_ExteriorRing(st_buffer(geom, 20, 'quad_segs=10')) as geom 
+	from camaras) as a 
+	) AS foo;
+	
+ ALTER TABLE poligono1
+    ALTER COLUMN geom
+    TYPE Geometry(polygon, 32613)
+    USING ST_Transform(geom, 32613);
+	
+select ST_MakeLine(a.geom, b.geom) from camaras a, puntos b;
+
+st_astext(geom) from puntos
